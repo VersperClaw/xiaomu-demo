@@ -91,9 +91,12 @@ if "user_msgs" not in st.session_state:
 if "sent_auto_msg" not in st.session_state:
     st.session_state.sent_auto_msg = set()
 
-if "task_1" not in st.session_state: st.session_state.task_1 = False
-if "task_2" not in st.session_state: st.session_state.task_2 = False
-if "task_3" not in st.session_state: st.session_state.task_3 = False
+if "task_1" not in st.session_state:
+    st.session_state.task_1 = False
+if "task_2" not in st.session_state:
+    st.session_state.task_2 = False
+if "task_3" not in st.session_state:
+    st.session_state.task_3 = False
 if "task_3_enable" not in st.session_state:
     st.session_state.task_3_enable = False
 
@@ -392,84 +395,108 @@ with st.container():
             st.markdown(f'<div class="time">{time}</div>', unsafe_allow_html=True)
 
         st.markdown("""""")
-<script>
-setTimeout(() => {
-    window.parent.postMessage({type: "streamlit:setComponentValue", data: {value: true}}, "*");
-}, 1800);
-</script>
-""", unsafe_allow_html=True)
-            st.session_state.auto_delay = False
 
-            st.markdown("""
-<script>
-window.addEventListener('load', function(){
-    setTimeout(() => {
-        window.scrollTo(0, document.body.scrollHeight);
-    }, 100);
-});
-</script>
-""", unsafe_allow_html=True)
-
-            if st.session_state.scroll_to_task:
-                st.markdown("""
+    # 自动消息动画和滚动处理
+    st.markdown("""
     <script>
-    setTimeout(()=>{
-        let el = document.getElementById('task_msg');
-        if(el) el.scrollIntoView({behavior:'smooth'});
-    }, 100);
+    setTimeout(() => {
+        window.parent.postMessage({type: "streamlit:setComponentValue", data: {value: true}}, "*");
+    }, 1800);
     </script>
     """, unsafe_allow_html=True)
-            st.session_state.scroll_to_task = False
+    st.session_state.auto_delay = False
 
-            # -------------------- 输入框 --------------------
-            prompt = st.chat_input("输入消息...")
-            st.markdown("""
+    # 自动滚动到底部
+    st.markdown("""
+    <script>
+    window.addEventListener('load', function(){
+        setTimeout(() => {
+            window.scrollTo(0, document.body.scrollHeight);
+        }, 100);
+    });
+    </script>
+    """, unsafe_allow_html=True)
+
+    # 滚动到任务消息
+    if st.session_state.scroll_to_task:
+        st.markdown("""
+        <script>
+        setTimeout(()=>{
+            let el = document.getElementById('task_msg');
+            if(el) el.scrollIntoView({behavior:'smooth'});
+        }, 100);
+        </script>
+        """, unsafe_allow_html=True)
+    st.session_state.scroll_to_task = False
+
+# -------------------- 输入框 --------------------
+prompt = st.chat_input("输入消息...")
+st.markdown("""
 <script>
 const t = window.parent.document.querySelector('textarea');
 if(t) t.focus();
 </script>
 """, unsafe_allow_html=True)
 
-            if prompt:
-                lower = prompt.lower()
-            negative = ["不开心", "难过", "压力", "烦", "累", "哭", "焦虑", "崩"]
-            study_words = ["学习", "复习", "知识点", "教我", "不会", "题目"]
-            help_words = ["帮我", "帮忙", "怎么做", "代码"]
+if prompt:
+    lower_prompt = prompt.lower()
+    # 检测负面情绪
+    negative_words = ["不开心", "难过", "压力", "烦", "累", "哭", "焦虑", "崩"]
+    study_words = ["学习", "复习", "知识点", "教我", "不会", "题目"]
+    help_words = ["帮我", "帮忙", "怎么做", "代码"]
 
-            for w in negative:
-                if
-            w in lower:
+    # 更新负面情绪标记
+    for w in negative_words:
+        if w in lower_prompt:
             st.session_state.has_negative_history = True
+            break
 
-            if any(w in lower for w in study_words):
-                st.session_state.last_help_time = now_time
-            st.session_state.help_type = "study"
-            elif any(w in lower for w in help_words):
-            st.session_state.last_help_time = now_time
-            st.session_state.help_type = "help"
+    # 更新帮助类型和时间
+    if any(w in lower_prompt for w in study_words):
+        st.session_state.last_help_time = now_time
+        st.session_state.help_type = "study"
+    elif any(w in lower_prompt for w in help_words):
+        st.session_state.last_help_time = now_time
+        st.session_state.help_type = "help"
 
-            st.session_state.user_msgs.setdefault(current, []).append({"name": "我", "text": prompt, "time": now_time})
+    # 添加用户消息
+    st.session_state.user_msgs.setdefault(current, []).append({
+        "name": "我", "text": prompt, "time": now_time
+    })
 
-            if current == "小沐":
-                with
-            st.spinner("小沐正在输入..."):
+    # 小沐AI回复逻辑
+    if current == "小沐":
+        with st.spinner("小沐正在输入..."):
+            # 构建对话历史
             history = []
             for m in st.session_state.user_msgs.get("小沐", []):
-                if
-            is_before_or_equal(m["time"], now_time):
-            history.append({
-                "role": "user" if m["name"] == "我" else "assistant",
-                "content": m["text"]
+                if is_before_or_equal(m["time"], now_time):
+                    role = "user" if m["name"] == "我" else "assistant"
+                    history.append({"role": role, "content": m["text"]})
+
+            # 系统提示词
+            system_prompt = "你是小沐，温柔可爱、治愈、会共情、语气软、简短、不乱接话。"
+            messages = [{"role": "system", "content": system_prompt}] + history
+
+            # 调用DeepSeek API
+            try:
+                res = client.chat.completions.create(
+                    model="deepseek-v4-flash",
+                    messages=messages,
+                    temperature=temp
+                )
+                ai_text = res.choices[0].message.content[:120]
+            except Exception as e:
+                ai_text = f"小沐暂时有点忙哦～({str(e)[:50]})"
+
+            # 添加AI回复
+            st.session_state.user_msgs["小沐"].append({
+                "name": "小沐", "text": ai_text, "time": now_time
             })
-            system = "你是小沐，温柔可爱、治愈、会共情、语气软、简短、不乱接话。"
-            messages = [{"role": "system", "content": system}] + history
-            res = client.chat.completions.create(
-                model="deepseek-v4-flash",
-                messages=messages,
-                temperature=temp
-            )
-            ai_text = res.choices[0].message.content[:120]
-            st.session_state.user_msgs["小沐"].append({"name": "小沐", "text": ai_text, "time": now_time})
+
+            # 更新未读
             if st.session_state.current_chat != "小沐":
                 st.session_state.unread["小沐"] += 1
-            st.rerun()
+
+        # 重新运行页面刷新消息
+        st.rerun()
