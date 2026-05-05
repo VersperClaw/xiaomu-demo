@@ -386,7 +386,7 @@ with st.container():
 
         st.markdown(f'<div class="name">{name}</div>', unsafe_allow_html=True)
         if highlight:
-            st.markdown(f"{anchor}<div class='highlight-red {ani_class}" > {text} < / div > ", unsafe_allow_html=True)
+            st.markdown(f'{anchor}<div class="highlight-red {ani_class}" > {text} </div>', unsafe_allow_html=True)
             else:
             st.markdown(f'<div class="bubble-ai {ani_class}">{text}</div>', unsafe_allow_html=True)
             st.markdown(f'<div class="time">{time}</div>', unsafe_allow_html=True)
